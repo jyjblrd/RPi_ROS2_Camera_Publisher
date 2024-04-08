@@ -7,10 +7,10 @@ import os
 class CameraPublisherNode(Node):
     def __init__(self):
         node_name = os.environ.get('NODE_NAME', 'camera_publisher_node')
-        fps = os.environ.get('FPS', 30)
-        width = os.environ.get('WIDTH', 1280)
-        height = os.environ.get('HEIGHT', 720)
-        self.compression = os.environ.get('COMPRESSION', 30)
+        fps = int(os.environ.get('FPS', 30))
+        width = int(os.environ.get('WIDTH', 1280))
+        height = int(os.environ.get('HEIGHT', 720))
+        self.compression = int(os.environ.get('COMPRESSION', 30))
 
         super().__init__(node_name)
         self.publisher_ = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
