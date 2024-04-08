@@ -1,7 +1,7 @@
 FROM ros:humble
 
 # Install python3 libraries
-RUN sudo apt update && sudo apt install -y python3-pip ffmpeg libsm6 libxext6
+RUN sudo apt update && sudo apt install -y python3-pip ffmpeg libsm6 libxext6 ros-humble-rmw-cyclonedds-cpp
 
 COPY requirements.txt /tmp
 RUN pip3 install -r /tmp/requirements.txt
