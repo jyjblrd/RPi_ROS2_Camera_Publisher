@@ -24,6 +24,7 @@ class CameraPublisherNode(Node):
 
     def timer_callback(self):
         ret, frame = self.capture.read()
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
         if ret:
             # Compress the image
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.compression]
