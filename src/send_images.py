@@ -45,7 +45,7 @@ class VideoCaptureQ:
 class CameraPublisherNode(Node):
     def __init__(self):
         node_name = os.environ.get('NODE_NAME', 'camera_publisher_node')
-        fps = int(os.environ.get('FPS', 30))
+        self.fps = int(os.environ.get('FPS', 30))
         width = int(os.environ.get('WIDTH', 1280))
         height = int(os.environ.get('HEIGHT', 720))
         self.compression = int(os.environ.get('COMPRESSION', 30))
@@ -83,10 +83,14 @@ class CameraPublisherNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     camera_publisher_node = CameraPublisherNode()
+    last_step_time = 0
 
     try:
         while rclpy.ok():
-            camera_publisher_node.capture_image()
+            if time.time() - last_step_time > 1/camera_publisher_node.fps:
+                last_step_time = time.time()
+                camera_publisher_node.capture_image()
+                
             rclpy.spin_once(camera_publisher_node, timeout_sec=0)
             time.sleep(0.0001)
     except KeyboardInterrupt:
