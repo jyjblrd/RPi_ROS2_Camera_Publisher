@@ -52,13 +52,11 @@ class CameraPublisherNode(Node):
 
         super().__init__(node_name)
         self.publisher_ = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
-        timer_period = 1/fps
-        self.timer = self.create_timer(timer_period, self.timer_callback)
 
         # Initialize camera capture
         self.cap = VideoCaptureQ(vid_path, width, height)
 
-    def timer_callback(self):
+    def capture_image(self):
         if is_frame == False:
             print('no more frames')
             return
@@ -85,9 +83,17 @@ class CameraPublisherNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     camera_publisher_node = CameraPublisherNode()
-    rclpy.spin(camera_publisher_node)
-    camera_publisher_node.destroy_node()
-    rclpy.shutdown()
+
+    try:
+        while rclpy.ok():
+            camera_publisher_node.capture_image()
+            rclpy.spin_once(camera_publisher_node, timeout_sec=0)
+            time.sleep(0.0001)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        camera_publisher_node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
