@@ -42,7 +42,6 @@ class VideoCaptureQ:
                    self.q_raw.get_nowait()   # discard previous (unprocessed) frame
                 except Queue.Empty:
                     pass
-            print("a")
             self.q_raw.put(frame)
 
     def _proc(self):
