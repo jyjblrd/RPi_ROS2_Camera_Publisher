@@ -12,15 +12,22 @@ vid_path = 0
 is_frame = True
 class VideoCaptureQ:
 
-    def __init__(self, name, width, height):
-        self.cap = cv2.VideoCapture(name)
+    def __init__(self, name, width, height, compression):
+        self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.compression = compression
 
-        self.q = Queue.Queue()
-        t = threading.Thread(target=self._reader)
-        t.daemon = True
-        t.start()
+        self.q_raw = Queue.Queue()
+        self.q_proc = Queue.Queue()
+        t_reader = threading.Thread(target=self._reader)
+        t_proc = threading.Thread(target=self._proc)
+
+        t_reader.daemon = True
+        t_reader.start()
+        t_proc.daemon = True
+        t_proc.start()
+
 
     # read frames as soon as they are available, keeping only most recent one
     def _reader(self):
@@ -30,16 +37,35 @@ class VideoCaptureQ:
                 global is_frame
                 is_frame = False
                 break
-            if not self.q.empty():
+            if not self.q_raw.empty():
                 try:
-                    self.q.get_nowait()   # discard previous (unprocessed) frame
+                   self.q_raw.get_nowait()   # discard previous (unprocessed) frame
                 except Queue.Empty:
                     pass
-            self.q.put(frame)
+            print("a")
+            self.q_raw.put(frame)
+
+    def _proc(self):
+        while True:
+            frame = self.q_raw.get()
+
+            frame = cv2.rotate(frame, cv2.ROTATE_180)
+
+            # compress
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.compression]
+            result, encoded_image = cv2.imencode('.jpg', frame, encode_param)
+
+            if not self.q_proc.empty():
+                try:
+                   self.q_proc.get_nowait()   # discard previous (unprocessed) frame
+                except Queue.Empty:
+                    pass
+
+            self.q_proc.put(encoded_image)
 
     def read(self):
-        return self.q.get()
-    
+        return self.q_proc.get()
+
 
 
 class CameraPublisherNode(Node):
@@ -54,31 +80,23 @@ class CameraPublisherNode(Node):
         self.publisher_ = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
 
         # Initialize camera capture
-        self.cap = VideoCaptureQ(vid_path, width, height)
+        self.cap = VideoCaptureQ(vid_path, width, height, self.compression)
 
     def capture_image(self):
         if is_frame == False:
             print('no more frames')
             return
         try:
-            frame = self.cap.read()
+            encoded_data = self.cap.read()
+
         except Exception as e:
             print(e)
             return
 
-        frame = cv2.rotate(frame, cv2.ROTATE_180)
-
-        # Compress the image
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.compression]
-        result, encoded_image = cv2.imencode('.jpg', frame, encode_param)
-
-        if result:
-            msg = CompressedImage()
-            msg.format = "jpeg"
-            msg.data = encoded_image.tobytes()
-            self.publisher_.publish(msg)
-        else:
-            self.get_logger().error("Failed to compress image")
+        msg = CompressedImage()
+        msg.format = "jpeg"
+        msg.data = encoded_data.tobytes()
+        self.publisher_.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
@@ -92,7 +110,7 @@ def main(args=None):
                 camera_publisher_node.capture_image()
 
             rclpy.spin_once(camera_publisher_node, timeout_sec=0)
-            time.sleep(0.0001)
+
     except KeyboardInterrupt:
         pass
     finally:
