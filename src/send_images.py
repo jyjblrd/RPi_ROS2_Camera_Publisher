@@ -3,6 +3,44 @@ from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
 import cv2
 import os
+import queue as Queue
+import threading
+import time
+
+vid_path = "/dev/video0"
+
+is_frame = True
+class VideoCaptureQ:
+
+    def __init__(self, name, width, height):
+        self.cap = cv2.VideoCapture(name)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
+        self.q = Queue.Queue()
+        t = threading.Thread(target=self._reader)
+        t.daemon = True
+        t.start()
+
+    # read frames as soon as they are available, keeping only most recent one
+    def _reader(self):
+        while True:
+            ret, frame = self.cap.read()
+            if not ret:
+                global is_frame
+                is_frame = False
+                break
+            if not self.q.empty():
+                try:
+                    self.q.get_nowait()   # discard previous (unprocessed) frame
+                except Queue.Empty:
+                    pass
+            self.q.put(frame)
+
+    def read(self):
+        return self.q.get()
+    
+
 
 class CameraPublisherNode(Node):
     def __init__(self):
@@ -18,27 +56,31 @@ class CameraPublisherNode(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         # Initialize camera capture
-        self.capture = cv2.VideoCapture(0)
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.cap = VideoCaptureQ(vid_path, width, height)
 
     def timer_callback(self):
-        ret, frame = self.capture.read()
-        frame = cv2.rotate(frame, cv2.ROTATE_180)
-        if ret:
-            # Compress the image
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.compression]
-            result, encoded_image = cv2.imencode('.jpg', frame, encode_param)
+        if is_frame == False:
+            print('no more frames')
+            return
+        try:
+            frame = self.cap.read()
+        except Exception as e:
+            print(e)
+            return
 
-            if result:
-                msg = CompressedImage()
-                msg.format = "jpeg"
-                msg.data = encoded_image.tobytes()
-                self.publisher_.publish(msg)
-            else:
-                self.get_logger().error("Failed to compress image")
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+
+        # Compress the image
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.compression]
+        result, encoded_image = cv2.imencode('.jpg', frame, encode_param)
+
+        if result:
+            msg = CompressedImage()
+            msg.format = "jpeg"
+            msg.data = encoded_image.tobytes()
+            self.publisher_.publish(msg)
         else:
-            self.get_logger().error("Failed to capture frame from camera")
+            self.get_logger().error("Failed to compress image")
 
 def main(args=None):
     rclpy.init(args=args)
