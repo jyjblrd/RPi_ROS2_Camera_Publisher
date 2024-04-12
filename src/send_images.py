@@ -7,7 +7,7 @@ import queue as Queue
 import threading
 import time
 
-vid_path = "/dev/video0"
+vid_path = 0
 
 is_frame = True
 class VideoCaptureQ:
@@ -90,7 +90,7 @@ def main(args=None):
             if time.time() - last_step_time > 1/camera_publisher_node.fps:
                 last_step_time = time.time()
                 camera_publisher_node.capture_image()
-                
+
             rclpy.spin_once(camera_publisher_node, timeout_sec=0)
             time.sleep(0.0001)
     except KeyboardInterrupt:
