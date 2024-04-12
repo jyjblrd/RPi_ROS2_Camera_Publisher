@@ -1,11 +1,13 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import CompressedImage, CameraInfo
 import cv2
 import os
 import queue as Queue
 import threading
 import time
+import json
+
 
 vid_path = 0
 
@@ -76,7 +78,20 @@ class CameraPublisherNode(Node):
         self.compression = int(os.environ.get('COMPRESSION', 30))
 
         super().__init__(node_name)
-        self.publisher_ = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
+        self.image_publisher = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
+        self.camera_info_publisher = self.create_publisher(CameraInfo, f'{node_name}/camera_image/camera_info', 10)
+
+        with open("/opt/root_ws/host_files/camera_info.json") as f:
+            calib_data = json.load(f)
+        self.camera_info_msg = CameraInfo()
+        self.camera_info_msg.header.frame_id = node_name
+        self.camera_info_msg.height = calib_data["height"]
+        self.camera_info_msg.width = calib_data["width"]
+        self.camera_info_msg.K = calib_data["camera_matrix"]
+        self.camera_info_msg.D = calib_data["distortion_coefficients"]
+        self.camera_info_msg.R = calib_data["rectification_matrix"]
+        self.camera_info_msg.P = calib_data["projection_matrix"]
+        self.camera_info_msg.distortion_model = calib_data["distortion_model"]
 
         # Initialize camera capture
         self.cap = VideoCaptureQ(vid_path, width, height, self.compression)
@@ -95,7 +110,10 @@ class CameraPublisherNode(Node):
         msg = CompressedImage()
         msg.format = "jpeg"
         msg.data = encoded_data.tobytes()
-        self.publisher_.publish(msg)
+        self.image_publisher.publish(msg)
+
+    def publish_camera_info(self):
+        self.publisher_.publish(self.camera_info_msg)
 
 def main(args=None):
     rclpy.init(args=args)
