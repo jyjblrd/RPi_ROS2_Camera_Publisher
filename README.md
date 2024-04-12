@@ -21,9 +21,11 @@ Restart=always
 ExecStartPre=/usr/bin/docker pull joshuabird/rpi_ros2_camera_publisher:latest
 ExecStart=/usr/bin/docker run --rm --privileged -e NODE_NAME='rpi_cam_0' -e COMPRESSION='30' -e WIDTH='1280' -e HEIGHT='720' -e FPS='30' -->
 ExecStop=/usr/bin/docker stop joshuabird/rpi_ros2_camera_publisher:latest
+TimeoutSec=900
 
 [Install]
 WantedBy=default.target
 ```
 
-Then run `sudo systemctl enable docker-rpi-cam.service`
+Then run `sudo systemctl enable docker-rpi-cam.service` then `sudo systemctl start docker-rpi-cam.service`.
+It may take a few minutes to start the first time, as it needs to download the docker image.
