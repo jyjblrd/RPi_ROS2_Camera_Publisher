@@ -113,7 +113,7 @@ class CameraPublisherNode(Node):
         self.image_publisher.publish(msg)
 
     def publish_camera_info(self):
-        self.publisher_.publish(self.camera_info_msg)
+        self.camera_info_publisher.publish(self.camera_info_msg)
 
 def main(args=None):
     rclpy.init(args=args)
