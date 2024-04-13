@@ -149,6 +149,7 @@ def main(args=None):
                 last_step_time = time.time()
                 camera_publisher_node.capture_image()
                 camera_publisher_node.publish_camera_info()
+                camera_publisher_node.publish_corrected_tf()
 
             rclpy.spin_once(camera_publisher_node, timeout_sec=0)
 
