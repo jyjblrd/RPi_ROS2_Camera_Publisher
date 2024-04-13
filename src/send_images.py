@@ -125,6 +125,7 @@ def main(args=None):
             if time.time() - last_step_time > 1/camera_publisher_node.fps:
                 last_step_time = time.time()
                 camera_publisher_node.capture_image()
+                camera_publisher_node.publish_camera_info()
 
             rclpy.spin_once(camera_publisher_node, timeout_sec=0)
 
