@@ -87,10 +87,10 @@ class CameraPublisherNode(Node):
         self.camera_info_msg.header.frame_id = node_name
         self.camera_info_msg.height = calib_data["height"]
         self.camera_info_msg.width = calib_data["width"]
-        self.camera_info_msg.K = calib_data["camera_matrix"]
-        self.camera_info_msg.D = calib_data["distortion_coefficients"]
-        self.camera_info_msg.R = calib_data["rectification_matrix"]
-        self.camera_info_msg.P = calib_data["projection_matrix"]
+        self.camera_info_msg.k = calib_data["camera_matrix"]
+        self.camera_info_msg.d = calib_data["distortion_coefficients"]
+        self.camera_info_msg.r = calib_data["rectification_matrix"]
+        self.camera_info_msg.p = calib_data["projection_matrix"]
         self.camera_info_msg.distortion_model = calib_data["distortion_model"]
 
         # Initialize camera capture
