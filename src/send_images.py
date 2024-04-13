@@ -7,6 +7,9 @@ import queue as Queue
 import threading
 import time
 import json
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import TransformBroadcaster
+
 
 
 vid_path = 0
@@ -81,18 +84,33 @@ class CameraPublisherNode(Node):
         super().__init__(node_name)
         self.image_publisher = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
         self.camera_info_publisher = self.create_publisher(CameraInfo, f'{node_name}/camera_image/camera_info', 10)
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         with open("/opt/root_ws/host_files/camera_info.json") as f:
-            calib_data = json.load(f)
+            camera_info = json.load(f)
         self.camera_info_msg = CameraInfo()
-        self.camera_info_msg.header.frame_id = node_name
-        self.camera_info_msg.height = calib_data["height"]
-        self.camera_info_msg.width = calib_data["width"]
-        self.camera_info_msg.k = calib_data["camera_matrix"]
-        self.camera_info_msg.d = calib_data["distortion_coefficients"]
-        self.camera_info_msg.r = calib_data["rectification_matrix"]
-        self.camera_info_msg.p = calib_data["projection_matrix"]
-        self.camera_info_msg.distortion_model = calib_data["distortion_model"]
+        self.camera_info_msg.header.frame_id = f"{node_name}_corrected"
+        self.camera_info_msg.height = camera_info["height"]
+        self.camera_info_msg.width = camera_info["width"]
+        self.camera_info_msg.k = camera_info["camera_matrix"]
+        self.camera_info_msg.d = camera_info["distortion_coefficients"]
+        self.camera_info_msg.r = camera_info["rectification_matrix"]
+        self.camera_info_msg.p = camera_info["projection_matrix"]
+        self.camera_info_msg.distortion_model = camera_info["distortion_model"]
+
+        with open("/opt/root_ws/host_files/mocap_calibration.json") as f:
+            mocap_calibration = json.load(f)
+        self.correction_transform = TransformStamped()
+        self.correction_transform.header.stamp = self.get_clock().now().to_msg()
+        self.correction_transform.header.frame_id = self.node_name
+        self.correction_transform.child_frame_id = f"{self.node_name}_corrected"
+        self.correction_transform.transform.translation.x = mocap_calibration["translation"]["x"]
+        self.correction_transform.transform.translation.y = mocap_calibration["translation"]["y"]
+        self.correction_transform.transform.translation.z = mocap_calibration["translation"]["z"]
+        self.correction_transform.transform.rotation.x = mocap_calibration["rotation"]["x"]
+        self.correction_transform.transform.rotation.y = mocap_calibration["rotation"]["y"]
+        self.correction_transform.transform.rotation.z = mocap_calibration["rotation"]["z"]
+        self.correction_transform.transform.rotation.w = mocap_calibration["rotation"]["w"]
 
         # Initialize camera capture
         self.cap = VideoCaptureQ(vid_path, width, height, self.compression)
@@ -109,13 +127,16 @@ class CameraPublisherNode(Node):
             return
 
         msg = CompressedImage()
-        msg.header.frame_id = self.node_name
+        msg.header.frame_id = f"{self.node_name}_corrected"
         msg.format = "jpeg"
         msg.data = encoded_data.tobytes()
         self.image_publisher.publish(msg)
 
     def publish_camera_info(self):
         self.camera_info_publisher.publish(self.camera_info_msg)
+
+    def publish_corrected_tf(self):
+        self.tf_broadcaster.sendTransform(self.correction_transform)
 
 def main(args=None):
     rclpy.init(args=args)
