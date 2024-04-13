@@ -76,6 +76,7 @@ class CameraPublisherNode(Node):
         width = int(os.environ.get('WIDTH', 1280))
         height = int(os.environ.get('HEIGHT', 720))
         self.compression = int(os.environ.get('COMPRESSION', 30))
+        self.node_name = node_name
 
         super().__init__(node_name)
         self.image_publisher = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
@@ -108,6 +109,7 @@ class CameraPublisherNode(Node):
             return
 
         msg = CompressedImage()
+        msg.header.frame_id = self.node_name
         msg.format = "jpeg"
         msg.data = encoded_data.tobytes()
         self.image_publisher.publish(msg)
