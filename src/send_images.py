@@ -8,7 +8,7 @@ import threading
 import time
 import json
 from geometry_msgs.msg import TransformStamped
-from tf2_ros import TransformBroadcaster
+from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 
 
 
@@ -84,7 +84,7 @@ class CameraPublisherNode(Node):
         super().__init__(node_name)
         self.image_publisher = self.create_publisher(CompressedImage, f'{node_name}/camera_image/compressed', 10)
         self.camera_info_publisher = self.create_publisher(CameraInfo, f'{node_name}/camera_image/camera_info', 10)
-        self.tf_broadcaster = TransformBroadcaster(self)
+        self.tf_static_broadcaster = StaticTransformBroadcaster(self)
 
         with open("/opt/root_ws/host_files/camera_info.json") as f:
             camera_info = json.load(f)
@@ -136,7 +136,7 @@ class CameraPublisherNode(Node):
         self.camera_info_publisher.publish(self.camera_info_msg)
 
     def publish_corrected_tf(self):
-        self.tf_broadcaster.sendTransform(self.correction_transform)
+        self.tf_static_broadcaster.sendTransform(self.correction_transform)
 
 def main(args=None):
     rclpy.init(args=args)
