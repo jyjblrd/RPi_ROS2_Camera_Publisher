@@ -90,6 +90,7 @@ class CameraPublisherNode(Node):
             camera_info = json.load(f)
         self.camera_info_msg = CameraInfo()
         self.camera_info_msg.header.frame_id = f"{node_name}_corrected"
+        self.camera_info_msg.header.stamp = self.get_clock().now().to_msg()
         self.camera_info_msg.height = camera_info["height"]
         self.camera_info_msg.width = camera_info["width"]
         self.camera_info_msg.k = camera_info["camera_matrix"]
@@ -128,6 +129,7 @@ class CameraPublisherNode(Node):
 
         msg = CompressedImage()
         msg.header.frame_id = f"{self.node_name}_corrected"
+        msg.header.stamp = self.get_clock().now().to_msg()
         msg.format = "jpeg"
         msg.data = encoded_data.tobytes()
         self.image_publisher.publish(msg)
