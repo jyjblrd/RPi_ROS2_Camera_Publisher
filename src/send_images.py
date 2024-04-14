@@ -17,11 +17,12 @@ vid_path = 0
 is_frame = True
 class VideoCaptureQ:
 
-    def __init__(self, name, width, height, compression):
+    def __init__(self, name, width, height, compression, node):
         self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.compression = compression
+        self.node = node
 
         self.q_raw = Queue.Queue()
         self.q_proc = Queue.Queue()
@@ -47,11 +48,14 @@ class VideoCaptureQ:
                    self.q_raw.get_nowait()   # discard previous (unprocessed) frame
                 except Queue.Empty:
                     pass
-            self.q_raw.put(frame)
+
+            stamp = self.node.get_clock().now().to_msg()
+            
+            self.q_raw.put((stamp, frame))
 
     def _proc(self):
         while True:
-            frame = self.q_raw.get()
+            (stamp, frame) = self.q_raw.get()
 
             frame = cv2.rotate(frame, cv2.ROTATE_180)
 
@@ -65,7 +69,7 @@ class VideoCaptureQ:
                 except Queue.Empty:
                     pass
 
-            self.q_proc.put(encoded_image)
+            self.q_proc.put((stamp, encoded_image))
 
     def read(self):
         return self.q_proc.get()
@@ -114,14 +118,14 @@ class CameraPublisherNode(Node):
         self.correction_transform.transform.rotation.w = mocap_calibration["rotation"]["w"]
 
         # Initialize camera capture
-        self.cap = VideoCaptureQ(vid_path, width, height, self.compression)
+        self.cap = VideoCaptureQ(vid_path, width, height, self.compression, self)
 
     def capture_image(self):
         if is_frame == False:
             print('no more frames')
             return
         try:
-            encoded_data = self.cap.read()
+            (stamp, encoded_data) = self.cap.read()
 
         except Exception as e:
             print(e)
@@ -129,7 +133,7 @@ class CameraPublisherNode(Node):
 
         msg = CompressedImage()
         msg.header.frame_id = f"{self.node_name}_corrected"
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = stamp
         msg.format = "jpeg"
         msg.data = encoded_data.tobytes()
         self.image_publisher.publish(msg)
